@@ -22,9 +22,12 @@ class Interface:
         self.lang = LANG
         try:
             with open(self.settings_path, "r", encoding="utf-8") as f:
-                self.active_lang = json.load(f).get("language", "en")
+                _s = json.load(f)
+                self.active_lang = _s.get("language", "en")
+                self.sound_enabled = _s.get("sound_enabled", True)
         except (json.JSONDecodeError, OSError):
             self.active_lang = "en"
+            self.sound_enabled = True
         if self.active_lang not in self.lang:
             self.active_lang = "en"
 
@@ -65,6 +68,12 @@ class Interface:
         self.flag_btn = tk.Button(self.root, image=flag_image, borderwidth=0, highlightthickness=0, cursor="hand2", command=self._cycle_language)
         self.flag_btn.image = flag_image
         self.flag_btn.place(x=6, y=6)
+
+        sound_icon_file = "volume-up.png" if self.sound_enabled else "mute.png"
+        sound_image = ImageTk.PhotoImage(Image.open(self.bundled_path(sound_icon_file)).resize((18, 18)))
+        self.sound_btn = tk.Button(self.root, image=sound_image, borderwidth=0, highlightthickness=0, cursor="hand2", command=self._toggle_sound)
+        self.sound_btn.image = sound_image
+        self.sound_btn.place(x=376, y=6)
 
     def _setup_widgets(self):
         translated_variables = self.lang[self.active_lang]
@@ -134,6 +143,22 @@ class Interface:
         self.flag_btn.config(image=flag_image)
         self.flag_btn.image = flag_image
 
+    def _toggle_sound(self):
+        self.sound_enabled = not self.sound_enabled
+        sound_icon_file = "volume-up.png" if self.sound_enabled else "mute.png"
+        sound_image = ImageTk.PhotoImage(Image.open(self.bundled_path(sound_icon_file)).resize((18, 18)))
+        self.sound_btn.config(image=sound_image)
+        self.sound_btn.image = sound_image
+
+        try:
+            with open(self.settings_path, "r", encoding="utf-8") as f:
+                settings = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            settings = {}
+        settings["sound_enabled"] = self.sound_enabled
+        with open(self.settings_path, "w", encoding="utf-8") as f:
+            json.dump(settings, f, indent=2)
+
     def _load_settings(self):
         self.max_var.set("")
         self.min_var.set("")
@@ -149,6 +174,11 @@ class Interface:
                 self.min_var.set(settings["min_click_timer"])
             if settings.get("timer_limit") is not None:
                 self.timer_var.set(settings["timer_limit"])
+            self.sound_enabled = settings.get("sound_enabled", True)
+            sound_icon_file = "volume-up.png" if self.sound_enabled else "mute.png"
+            sound_image = ImageTk.PhotoImage(Image.open(self.bundled_path(sound_icon_file)).resize((18, 18)))
+            self.sound_btn.config(image=sound_image)
+            self.sound_btn.image = sound_image
         except (json.JSONDecodeError, OSError):
             pass
 
@@ -156,6 +186,7 @@ class Interface:
         os.makedirs(self.data_dir, exist_ok=True)
         settings = {
             "language": self.active_lang,
+            "sound_enabled": self.sound_enabled,
             "max_click_timer": self.max_var.get() or None,
             "min_click_timer": self.min_var.get() or None,
             "timer_limit": self.timer_var.get() or None,

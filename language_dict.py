@@ -2,7 +2,7 @@
 
 LANG = {
     "en": {
-        "app_title": "Ghost Scroller\nClick Status: 1\nMax Running Time: 3 minutes\nMinutes Remaining: 4 min",
+        "app_title": "Ghost Scroller\nClick Status: 1\nMax Running Time: 3 min\nMinutes Remaining: 4 min",
         "max_click_timer": "Max click timer:",
         "min_click_timer": "Min click timer:",
         "timer_limit": "Running limit",
@@ -15,7 +15,7 @@ LANG = {
         "1": ["Active", "Waiting"]
     },
     "el": {
-        "app_title": "Ghost Scroller\nΚλίκ: 1\nMax Χρόνος Εργασίας: 3 λεπτά\nΕναπομένοντα Λεπτά: 4 λεπ",
+        "app_title": "Ghost Scroller\nΚλίκ: 1\nMax Χρόνος Εργασίας: 3 λεπ\nΕναπομένοντα Λεπτά: 4 λεπ",
         "max_click_timer": "Max χρόνος αναμονής:",
         "min_click_timer": "Min χρόνος αναμονής:",
         "timer_limit": "Χρόνος εργασίας:",

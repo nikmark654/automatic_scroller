@@ -22,13 +22,14 @@ def bundled_path(relative_path):
 APP_NAME = "auto scroller"
 DATA_DIR = user_data_dir(APP_NAME)
 
-cursor_checks_dict = {"use_trigger": None, "max_wait": None, "min_wait": None, "timer_limit": None}
+cursor_checks_dict = {"use_trigger": None, "max_wait": None, "min_wait": None, "timer_limit": None, "sound_enabled": True}
 app_status = {
     "running_clicks": False,
     "timer_limit": None,
     "minutes_remaining": None,
 }
 manual_stop = True
+_cursor_threads = []
 
 SETTINGS_FILE = os.path.join(DATA_DIR, "auto_scroller_settings.json")
 _system_locale = locale.getlocale()[0]
@@ -45,6 +46,7 @@ else:
     with open(SETTINGS_FILE, "w", encoding="utf-8") as _f:
         json.dump({
             "language": active_lang,
+            "sound_enabled": True,
             "max_click_timer": None,
             "min_click_timer": None,
             "timer_limit": None
@@ -102,6 +104,7 @@ def on_reset_settings(icon, _):
         with open(SETTINGS_FILE, "w", encoding="utf-8") as _f:
             json.dump({
                 "language": active_lang,
+                "sound_enabled": True,
                 "max_click_timer": None,
                 "min_click_timer": None,
                 "timer_limit": None,
@@ -130,17 +133,26 @@ except (FileNotFoundError, OSError):
 translated_variables = LANG[active_lang]
 
 def on_start_scrolling(icon, _):
-    global manual_stop
+    global manual_stop, _cursor_threads
+    _cursor_threads = [t for t in _cursor_threads if t.is_alive()]
+    if len(_cursor_threads) > 0:
+        return
     manual_stop = False
-    threading.Thread(target=sound_start, daemon=True).start()
-    threading.Thread(target=run_cursor_controls, args=(icon,), daemon=True).start()
+    if cursor_checks_dict.get('sound_enabled', True):
+        threading.Thread(target=sound_start, daemon=True).start()
+    t = threading.Thread(target=run_cursor_controls, args=(icon,), daemon=True)
+    t.start()
+    _cursor_threads.append(t)
     print('Started Cursor Controling!')
 
 
 def on_stop_scrolling():
-    global manual_stop
+    global manual_stop, _cursor_threads
     manual_stop = True
     app_status["running_clicks"] = False
+    app_status["timer_limit"] = None
+    app_status["minutes_remaining"] = None
+    _cursor_threads.clear()
     print('Stoped cursor controling!')
 
 
@@ -178,6 +190,7 @@ def settings_watcher(icon):
         cursor_checks_dict['timer_limit'] = settings.get('timer_limit')
         cursor_checks_dict['max_wait'] = settings.get('max_click_timer')
         cursor_checks_dict['min_wait'] = settings.get('min_click_timer')
+        cursor_checks_dict['sound_enabled'] = settings.get('sound_enabled', True)
 
         t = LANG[active_lang]
         click_status = t["1"][0] if app_status["running_clicks"] else t["1"][1]
@@ -221,15 +234,18 @@ def run_cursor_controls(icon):
             if iterator >= random_bound and random_bound != -1:
                 print('We clicked!!')
                 CursorControls.apply_click()
-                threading.Thread(target=sound_tick, daemon=True).start()
+                if cursor_checks_dict.get('sound_enabled', True):
+                    threading.Thread(target=sound_tick, daemon=True).start()
                 bound_updated = False
                 iterator = 0
             iterator += 1
             timer_limit_iterator += 1
-            threading.Thread(target=sound_clock_tick, daemon=True).start()
+            if cursor_checks_dict.get('sound_enabled', True):
+                threading.Thread(target=sound_clock_tick, daemon=True).start()
         else:
             on_stop_scrolling()
-            threading.Thread(target=sound_stop, daemon=True).start()
+            if cursor_checks_dict.get('sound_enabled', True):
+                threading.Thread(target=sound_stop, daemon=True).start()
             break
 
 
