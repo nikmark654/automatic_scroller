@@ -1,5 +1,6 @@
 import json
 import os
+import webbrowser
 import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
@@ -75,6 +76,12 @@ class Interface:
         self.sound_btn.image = sound_image
         self.sound_btn.place(x=376, y=6)
 
+        # Signature link
+        link = tk.Label(self.root, text="nikmark654", fg="#78613B", bg="white", cursor="hand2", font=("Helvetica", 12, "underline"))
+        link.place(relx=0.5, rely=1.0, anchor="s", y=-20)
+        link.bind("<Button-1>", lambda _: webbrowser.open("https://github.com/nikmark654"))
+
+
     def _setup_widgets(self):
         translated_variables = self.lang[self.active_lang]
         container = tk.Frame(self.root)
@@ -117,6 +124,7 @@ class Interface:
         # Save button
         self.save_btn = ttk.Button(container, text=translated_variables["save"], style="Save.TButton", command=self._save_settings, cursor="hand2")
         self.save_btn.pack(pady=12)
+
 
     def _cycle_language(self):
         languages = list(self.lang.keys())
