@@ -1,5 +1,0 @@
------------------------------
--- Turn to cursor_controls --
------------------------------
-> Add alarm engine.
-> Add click alarm.

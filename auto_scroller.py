@@ -2,6 +2,7 @@ import sys
 import os
 import json
 import locale
+import time
 import threading
 import multiprocessing
 from pystray import Icon, Menu, MenuItem
@@ -30,6 +31,7 @@ app_status = {
 }
 manual_stop = True
 _cursor_threads = []
+_og_cursor_pos = []
 
 SETTINGS_FILE = os.path.join(DATA_DIR, "auto_scroller_settings.json")
 _system_locale = locale.getlocale()[0]
@@ -133,11 +135,22 @@ except (FileNotFoundError, OSError):
 translated_variables = LANG[active_lang]
 
 def on_start_scrolling(icon, _):
-    global manual_stop, _cursor_threads
+    global manual_stop, _cursor_threads, _og_cursor_pos
     _cursor_threads = [t for t in _cursor_threads if t.is_alive()]
     if len(_cursor_threads) > 0:
         return
     manual_stop = False
+    _og_cursor_pos.clear()
+
+    def _capture_og_pos():
+        time.sleep(10)
+        if not manual_stop:
+            _og_cursor_pos.clear()
+            _og_cursor_pos.append(CursorControls.get_position())
+            print(f'Captured og cursor pos: {_og_cursor_pos[0]}')
+
+    threading.Thread(target=_capture_og_pos, daemon=True).start()
+
     if cursor_checks_dict.get('sound_enabled', True):
         threading.Thread(target=sound_start, daemon=True).start()
     t = threading.Thread(target=run_cursor_controls, args=(icon,), daemon=True)
@@ -147,12 +160,13 @@ def on_start_scrolling(icon, _):
 
 
 def on_stop_scrolling():
-    global manual_stop, _cursor_threads
+    global manual_stop, _cursor_threads, _og_cursor_pos
     manual_stop = True
     app_status["running_clicks"] = False
     app_status["timer_limit"] = None
     app_status["minutes_remaining"] = None
     _cursor_threads.clear()
+    _og_cursor_pos.clear()
     print('Stoped cursor controling!')
 
 
@@ -209,7 +223,7 @@ def run_cursor_controls(icon):
     random_bound = -1
     bound_updated = False
     iterator = 0
-    timer_limit_iterator = 0
+    timer_limit_iterator = 0   
 
     while not _stop_event.wait(1):
         raw_limit = cursor_checks_dict.get('timer_limit')
@@ -233,8 +247,9 @@ def run_cursor_controls(icon):
                     pass
             if iterator >= random_bound and random_bound != -1:
                 print('We clicked!!')
-                CursorControls.apply_click()
-                if cursor_checks_dict.get('sound_enabled', True):
+                og = _og_cursor_pos[0] if _og_cursor_pos else None
+                clicked = CursorControls.handle_action(og)
+                if clicked and cursor_checks_dict.get('sound_enabled', True):
                     threading.Thread(target=sound_tick, daemon=True).start()
                 bound_updated = False
                 iterator = 0

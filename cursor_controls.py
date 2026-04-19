@@ -9,6 +9,9 @@ _mouse = Controller()
 
 class CursorControls:
 
+    def get_position():
+        return _mouse.position
+
     def apply_click():
         try:
             cx, cy = _mouse.position
@@ -26,24 +29,42 @@ class CursorControls:
             return True
         except:
             return False
-        
-    def check_device_sound_status():
+
+    def restore_position(og_x, og_y):
+        """Move cursor back to og_pos ±1px with human-like smooth movement."""
         try:
-            if sys.platform == "win32":
-                from pycaw.pycaw import AudioUtilities
-                sessions = AudioUtilities.GetAllSessions()
-                return any(s.Process is not None for s in sessions)
-            elif sys.platform == "darwin":
-                result = subprocess.run(
-                    ["ioreg", "-r", "-c", "IOAudioEngine", "-d", "3"],
-                    capture_output=True, text=True, timeout=2
-                )
-                return '"IOAudioEngineState" = 1' in result.stdout
-            else:
-                result = subprocess.run(
-                    ["pactl", "list", "sinks"],
-                    capture_output=True, text=True, timeout=2
-                )
-                return "State: RUNNING" in result.stdout
+            target_x = og_x + random.randint(-1, 1)
+            target_y = og_y + random.randint(-1, 1)
+            cx, cy = _mouse.position
+            dx = target_x - cx
+            dy = target_y - cy
+            distance = (dx ** 2 + dy ** 2) ** 0.5
+            steps = max(15, int(distance * 0.4))
+            for i in range(1, steps + 1):
+                t = i / steps
+                # smoothstep easing: slow start, fast middle, slow end
+                ease = t * t * (3 - 2 * t)
+                jx = random.uniform(-0.5, 0.5) if i < steps else 0
+                jy = random.uniform(-0.5, 0.5) if i < steps else 0
+                _mouse.position = (cx + dx * ease + jx, cy + dy * ease + jy)
+                time.sleep(random.uniform(0.008, 0.018))
+            
+            _mouse.press(Button.left)
+            time.sleep(random.uniform(0.05, 0.12))
+            _mouse.release(Button.left)
+
+            print(f'Restored cursor to ({target_x}, {target_y})')
+            return True
         except:
-            return None
+            return False
+
+    def handle_action(og_pos=None):
+        """Dispatch: restore cursor if out of bounds, otherwise apply click."""
+        if og_pos is not None:
+            og_x, og_y = og_pos
+            cx, cy = _mouse.position
+            if abs(cx - og_x) > 10 or abs(cy - og_y) > 5:
+                click_status = CursorControls.restore_position(og_x, og_y)
+                return click_status
+        click_status = CursorControls.apply_click()
+        return click_status
