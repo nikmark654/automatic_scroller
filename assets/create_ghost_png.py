@@ -1,6 +1,6 @@
 from PIL import Image
 
-W, H = 350, 420
+W, H = 400, 520
 bg = Image.new("RGBA", (W, H), (255, 255, 255, 255))
 
 ghost = Image.open("monstera.png").convert("RGBA")
@@ -21,7 +21,7 @@ ghosts = [
     # Close / bottom
     (0.28, 110, 0.10, 0.72),
     # (0.32, 120, 0.70, 0.78),
-    # (0.25, 100, 0.45, 0.88),
+    (0.25, 100, 0.45, 0.88),
     (0.38, 140, 0.88, 0.95),
 ]
 

@@ -1,7 +1,6 @@
 import sys
 import os
 import json
-import time
 import locale
 import threading
 import multiprocessing
@@ -11,6 +10,7 @@ from platformdirs import user_data_dir
 from random import randint, uniform
 from language_dict import LANG
 from cursor_controls import CursorControls
+from sound_utils import sound_start, sound_tick, sound_stop, sound_clock_tick
 
 
 def bundled_path(relative_path):
@@ -25,8 +25,8 @@ DATA_DIR = user_data_dir(APP_NAME)
 cursor_checks_dict = {"use_trigger": None, "max_wait": None, "min_wait": None, "timer_limit": None}
 app_status = {
     "running_clicks": False,
-    "check_type": None,
-    "timer_limit": None
+    "timer_limit": None,
+    "minutes_remaining": None,
 }
 manual_stop = True
 
@@ -47,7 +47,7 @@ else:
             "language": active_lang,
             "max_click_timer": None,
             "min_click_timer": None,
-            "use_sound": None,
+            "timer_limit": None
         }, _f, indent=2)
 
 active_lang = active_lang if active_lang in LANG else "en"
@@ -104,10 +104,8 @@ def on_reset_settings(icon, _):
                 "language": active_lang,
                 "max_click_timer": None,
                 "min_click_timer": None,
-                "use_sound": None,
+                "timer_limit": None,
             }, _f, indent=2)
-            print('Hello!!!')
-            raise OSError
     except OSError:
         icon.notify("Could not reset settings.", translated_variables["app_title"])
         return
@@ -134,6 +132,7 @@ translated_variables = LANG[active_lang]
 def on_start_scrolling(icon, _):
     global manual_stop
     manual_stop = False
+    threading.Thread(target=sound_start, daemon=True).start()
     threading.Thread(target=run_cursor_controls, args=(icon,), daemon=True).start()
     print('Started Cursor Controling!')
 
@@ -142,7 +141,6 @@ def on_stop_scrolling():
     global manual_stop
     manual_stop = True
     app_status["running_clicks"] = False
-    app_status["check_type"] = None
     print('Stoped cursor controling!')
 
 
@@ -177,23 +175,18 @@ def settings_watcher(icon):
                 MenuItem(translated_variables["quit"], on_quit),
             )
         
-        cursor_checks_dict['use_sound'] = settings.get('use_sound')
         cursor_checks_dict['timer_limit'] = settings.get('timer_limit')
-        if cursor_checks_dict["use_sound"] == True:
-            cursor_checks_dict['max_wait'] = None
-            cursor_checks_dict['min_wait'] = None
-        elif cursor_checks_dict["use_sound"] == False:
-            cursor_checks_dict['max_wait'] = settings.get('max_click_timer')
-            cursor_checks_dict['min_wait'] = settings.get('min_click_timer')
+        cursor_checks_dict['max_wait'] = settings.get('max_click_timer')
+        cursor_checks_dict['min_wait'] = settings.get('min_click_timer')
 
         t = LANG[active_lang]
         click_status = t["1"][0] if app_status["running_clicks"] else t["1"][1]
-        wait_type = t["2"][1] if app_status["check_type"] == "Sound" else t["2"][0]
         timer = str(app_status["timer_limit"]) if app_status["timer_limit"] is not None else "?"
+        remaining = str(app_status["minutes_remaining"]) if app_status["minutes_remaining"] is not None else "?"
         title = t["app_title"]
         title = title.replace(": 1", f": {click_status}")
-        title = title.replace(": 2", f": {wait_type}")
         title = title.replace(": 3 ", f": {timer} ")
+        title = title.replace(": 4 ", f": {remaining} ")
         icon.title = title
 
 
@@ -209,47 +202,34 @@ def run_cursor_controls(icon):
         raw_limit = cursor_checks_dict.get('timer_limit')
         timer_limit = int(raw_limit)*60 if raw_limit is not None else None
         app_status['timer_limit'] = raw_limit
-        print("Line 218: ", app_status, bound_updated, timer_limit_iterator)
+        if timer_limit is not None:
+            app_status['minutes_remaining'] = max(0, (timer_limit - timer_limit_iterator) // 60)
+        else:
+            app_status['minutes_remaining'] = None
+        print(app_status, "click_time: ", random_bound, "time running clicks: ", timer_limit_iterator)
         if timer_limit is None or timer_limit >= timer_limit_iterator and manual_stop != True:
 
             app_status["running_clicks"] = True
 
-            if cursor_checks_dict.get("use_sound") == True:
-                print('We use sound!')
-                app_status["check_type"] = 'Sound'
-                status = CursorControls.check_device_sound_status()
-                if status == False: # This means the device does not run audio.
-                    print('Audio does not play.')
-                    for i in range(randint(3, 10)):
-                        time.sleep(1)
-                        timer_limit_iterator +=1
-                    CursorControls.apply_click()
-                for i in range(randint(4, 7)):
-                    time.sleep(1)
-                    timer_limit_iterator +=1
-                random_bound = -1
+            if bound_updated == False:
+                try:
+                    random_bound = randint(int(cursor_checks_dict.get('min_wait')), int(cursor_checks_dict.get('max_wait')))
+                    bound_updated = True
+                    print('Random_bound updated!')
+                except:
+                    pass
+            if iterator >= random_bound and random_bound != -1:
+                print('We clicked!!')
+                CursorControls.apply_click()
+                threading.Thread(target=sound_tick, daemon=True).start()
                 bound_updated = False
                 iterator = 0
-            elif cursor_checks_dict.get("use_sound") == False:
-                print('We use timer!')
-                app_status["check_type"] = 'Timer'
-                if bound_updated == False:
-                    try:
-                        print('I tried to update random_bound!')
-                        random_bound = randint(int(cursor_checks_dict.get('min_wait')), int(cursor_checks_dict.get('max_wait')))
-                        bound_updated = True
-                        print('Random_bound updated!')
-                    except:
-                        pass
-                if iterator >= random_bound and random_bound != -1:
-                    print('We clicked!!')
-                    CursorControls.apply_click()
-                    bound_updated = False
-                    iterator = 0
-                iterator += 1
-            timer_limit_iterator +=1
+            iterator += 1
+            timer_limit_iterator += 1
+            threading.Thread(target=sound_clock_tick, daemon=True).start()
         else:
             on_stop_scrolling()
+            threading.Thread(target=sound_stop, daemon=True).start()
             break
 
 

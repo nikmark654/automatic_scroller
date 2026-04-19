@@ -30,9 +30,9 @@ class Interface:
 
         self.root = tk.Tk()
         self.root.title(self.lang[self.active_lang]["app_title"])
-        self.root.geometry("350x420")
-        self.root.minsize(350, 420)
-        self.root.maxsize(350, 420)
+        self.root.geometry("400x520")
+        self.root.minsize(400, 520)
+        self.root.maxsize(400, 520)
         self.root.withdraw()
 
         self._setup_styles()
@@ -56,7 +56,7 @@ class Interface:
         )
 
     def _setup_background(self):
-        bg_image = ImageTk.PhotoImage(Image.open(self.bundled_path("bg.png")).resize((350, 420)))
+        bg_image = ImageTk.PhotoImage(Image.open(self.bundled_path("bg.png")).resize((400, 520)))
         bg_label = tk.Label(self.root, image=bg_image)
         bg_label.image = bg_image
         bg_label.place(x=0, y=0, relwidth=1, relheight=1)
@@ -78,35 +78,30 @@ class Interface:
         # Max click timer
         max_frame = tk.Frame(container)
         max_frame.pack(pady=8)
-        self.max_label = tk.Label(max_frame, text=translated_variables["max_click_timer"], width=10, anchor="w")
+        self.max_label = tk.Label(max_frame, text=translated_variables["max_click_timer"], width=18, anchor="w")
         self.max_label.pack(side="left")
         self.max_var = tk.StringVar()
-        max_combo = ttk.Combobox(max_frame, textvariable=self.max_var, values=list(range(20, 121)), width=4, state="readonly", exportselection=False, justify="center")
+        max_combo = ttk.Combobox(max_frame, textvariable=self.max_var, values=list(range(20, 121)), width=5, state="readonly", exportselection=False, justify="center")
         max_combo.pack(side="left", padx=5)
         max_combo.bind("<<ComboboxSelected>>", on_select)
 
         # Min click timer
         min_frame = tk.Frame(container)
         min_frame.pack(pady=8)
-        self.min_label = tk.Label(min_frame, text=translated_variables["min_click_timer"], width=10, anchor="w")
+        self.min_label = tk.Label(min_frame, text=translated_variables["min_click_timer"], width=18, anchor="w")
         self.min_label.pack(side="left")
         self.min_var = tk.StringVar()
-        min_combo = ttk.Combobox(min_frame, textvariable=self.min_var, values=list(range(10, 40)), width=4, state="readonly", exportselection=False, justify="center")
+        min_combo = ttk.Combobox(min_frame, textvariable=self.min_var, values=list(range(10, 40)), width=5, state="readonly", exportselection=False, justify="center")
         min_combo.pack(side="left", padx=5)
         min_combo.bind("<<ComboboxSelected>>", on_select)
-
-        # Use sound instead
-        self.use_sound_var = tk.IntVar()
-        self.use_sound_check = tk.Checkbutton(container, text=translated_variables["use_sound_instead"], variable=self.use_sound_var, onvalue=1, offvalue=0)
-        self.use_sound_check.pack(pady=8)
 
         # Timer limit
         timer_frame = tk.Frame(container)
         timer_frame.pack(pady=8)
-        self.timer_label = tk.Label(timer_frame, text=translated_variables["timer_limit"], width=10, anchor="w")
+        self.timer_label = tk.Label(timer_frame, text=translated_variables["timer_limit"], width=18, anchor="w")
         self.timer_label.pack(side="left")
         self.timer_var = tk.StringVar()
-        timer_combo = ttk.Combobox(timer_frame, textvariable=self.timer_var, values=list(range(1, 121)), width=4, state="readonly", exportselection=False, justify="center")
+        timer_combo = ttk.Combobox(timer_frame, textvariable=self.timer_var, values=list(range(1, 121)), width=5, state="readonly", exportselection=False, justify="center")
         timer_combo.pack(side="left", padx=5)
         timer_combo.bind("<<ComboboxSelected>>", on_select)
 
@@ -132,7 +127,6 @@ class Interface:
         self.root.title(translated_variables["app_title"])
         self.max_label.config(text=translated_variables["max_click_timer"])
         self.min_label.config(text=translated_variables["min_click_timer"])
-        self.use_sound_check.config(text=translated_variables["use_sound_instead"])
         self.timer_label.config(text=translated_variables["timer_limit"])
         self.save_btn.config(text=translated_variables["save"])
 
@@ -143,20 +137,17 @@ class Interface:
     def _load_settings(self):
         self.max_var.set("")
         self.min_var.set("")
-        self.use_sound_var.set(False)
         self.timer_var.set("")
         if not os.path.exists(self.settings_path):
             return
         try:
             with open(self.settings_path, "r") as f:
                 settings = json.load(f)
-            if "max_click_timer" in settings:
+            if settings.get("max_click_timer") is not None:
                 self.max_var.set(settings["max_click_timer"])
-            if "min_click_timer" in settings:
+            if settings.get("min_click_timer") is not None:
                 self.min_var.set(settings["min_click_timer"])
-            if settings.get("use_sound") is not None:
-                self.use_sound_var.set(1 if settings["use_sound"] else 0)
-            if "timer_limit" in settings:
+            if settings.get("timer_limit") is not None:
                 self.timer_var.set(settings["timer_limit"])
         except (json.JSONDecodeError, OSError):
             pass
@@ -164,10 +155,10 @@ class Interface:
     def _save_settings(self):
         os.makedirs(self.data_dir, exist_ok=True)
         settings = {
-            "max_click_timer": self.max_var.get(),
-            "min_click_timer": self.min_var.get(),
-            "use_sound": self.use_sound_var.get() == 1,
-            "timer_limit": self.timer_var.get(),
+            "language": self.active_lang,
+            "max_click_timer": self.max_var.get() or None,
+            "min_click_timer": self.min_var.get() or None,
+            "timer_limit": self.timer_var.get() or None,
         }
         with open(self.settings_path, "w") as f:
             json.dump(settings, f, indent=2)
